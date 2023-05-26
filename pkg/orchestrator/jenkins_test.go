@@ -1,3 +1,6 @@
+//go:build unit
+// +build unit
+
 package orchestrator
 
 import (
@@ -347,6 +350,13 @@ func TestJenkinsConfigProvider_GetBuildReason(t *testing.T) {
 			name:           "Empty api",
 			apiInformation: []byte(`{}`),
 			want:           "Unknown",
+		},
+		{
+			name: "Empty action api",
+			apiInformation: []byte(`{
+				"actions": [{}]
+			}`),
+			want: "Unknown",
 		},
 	}
 	for _, tt := range tests {

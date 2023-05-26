@@ -1,3 +1,6 @@
+//go:build unit
+// +build unit
+
 package jenkins
 
 import (
@@ -17,6 +20,7 @@ func TestWaitForBuildToFinish(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		// init
 		build := &mocks.Build{}
+		build.On("Poll", ctx).Return(200, nil)
 		build.
 			On("IsRunning", ctx).Return(true).Once().
 			On("IsRunning", ctx).Return(false)

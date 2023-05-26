@@ -134,7 +134,7 @@ func (c *ConfigOptions) addGeneralDefaults(config *ScanOptions, utils Utils, pro
 		{Name: "userKey", Value: config.UserToken, Force: true},
 		{Name: "forceUpdate", Value: true, Force: true},
 		{Name: "offline", Value: false, Force: true},
-		{Name: "resolveAllDependencies", Value: false, Force: true},
+		{Name: "resolveAllDependencies", Value: false, Force: false},
 		{Name: "failErrorLevel", Value: "ALL", Force: true},
 		{Name: "case.sensitive.glob", Value: false},
 		{Name: "followSymbolicLinks", Value: true},
@@ -154,7 +154,6 @@ func (c *ConfigOptions) addBuildToolDefaults(config *ScanOptions, utils Utils) e
 			{Name: "fileSystemScan", Value: true},
 			{Name: "ignoreSourceFiles", Value: false},
 			{Name: "python.resolveGlobalPackages", Value: true, Force: false},
-			{Name: "resolveAllDependencies", Value: true, Force: false},
 			{Name: "updateType", Value: "OVERRIDE", Force: true},
 			{Name: "docker.excludeBaseImage", Value: "true", Force: false},
 		},
@@ -305,7 +304,7 @@ func mvnProjectExcludes(buildDescriptorExcludeList []string, utils Utils) []stri
 	return []string{}
 }
 
-//ToDo: Check if we want to optionally allow auto generation for unknown projects
+// ToDo: Check if we want to optionally allow auto generation for unknown projects
 func autoGenerateWhitesourceConfig(config *ScanOptions, utils Utils) error {
 	// TODO: Should we rely on -detect, or set the parameters manually?
 	if err := utils.RunExecutable("java", "-jar", config.AgentFileName, "-d", ".", "-detect"); err != nil {

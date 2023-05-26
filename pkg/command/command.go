@@ -100,7 +100,6 @@ var ExecCommand = exec.Command
 
 // RunShell runs the specified command on the shell
 func (c *Command) RunShell(shell, script string) error {
-
 	c.prepareOut()
 
 	cmd := ExecCommand(shell)
@@ -128,9 +127,21 @@ func (c *Command) RunShell(shell, script string) error {
 //
 //	Thus the executable needs to be on the PATH of the current process and it is not sufficient to alter the PATH on cmd.Env.
 func (c *Command) RunExecutable(executable string, params ...string) error {
+	c.prepareOut()
+
+	cmd := ExecCommand(executable, params...)
+
+	if len(c.dir) > 0 {
+		cmd.Dir = c.dir
+	}
+
 	log.Entry().Infof("running command: %v %v", executable, strings.Join(params, (" ")))
 
-	cmd := c.prepareCommand(executable, params...)
+	appendEnvironment(cmd, c.env)
+
+	if c.stdin != nil {
+		cmd.Stdin = c.stdin
+	}
 
 	if err := c.runCmd(cmd); err != nil {
 		return errors.Wrapf(err, "running command '%v' failed", executable)
@@ -140,30 +151,17 @@ func (c *Command) RunExecutable(executable string, params ...string) error {
 
 // RunExecutableInBackground runs the specified executable with parameters in the background non blocking
 // !! While the cmd.Env is applied during command execution, it is NOT involved when the actual executable is resolved.
-//
-//	Thus the executable needs to be on the PATH of the current process and it is not sufficient to alter the PATH on cmd.Env.
+//    Thus the executable needs to be on the PATH of the current process and it is not sufficient to alter the PATH on cmd.Env.
 func (c *Command) RunExecutableInBackground(executable string, params ...string) (Execution, error) {
-	log.Entry().Infof("running command: %v %v", executable, strings.Join(params, (" ")))
-
-	cmd := c.prepareCommand(executable, params...)
-
-	execution, err := c.startCmd(cmd)
-
-	if err != nil {
-		return nil, errors.Wrapf(err, "starting command '%v' failed", executable)
-	}
-
-	return execution, nil
-}
-
-func (c *Command) prepareCommand(executable string, params ...string) *exec.Cmd {
 	c.prepareOut()
 
-	cmd := ExecCommand(executable, c.expandEnv(params)...)
+	cmd := ExecCommand(executable, params...)
 
 	if len(c.dir) > 0 {
 		cmd.Dir = c.dir
 	}
+
+	log.Entry().Infof("running command: %v %v", executable, strings.Join(params, (" ")))
 
 	appendEnvironment(cmd, c.env)
 
@@ -171,35 +169,12 @@ func (c *Command) prepareCommand(executable string, params ...string) *exec.Cmd 
 		cmd.Stdin = c.stdin
 	}
 
-	return cmd
-}
-
-func (c *Command) expandEnv(params []string) []string {
-	interpolatedParams := []string{}
-
-	activeEnv := map[string]string{}
-
-	for _, e := range append(os.Environ(), c.env...) {
-		if i := strings.Index(e, "="); i >= 0 {
-			activeEnv[e[:i]] = e[i+1:]
-		}
+	execution, err := c.startCmd(cmd)
+	if err != nil {
+		return nil, errors.Wrapf(err, "starting command '%v' failed", executable)
 	}
 
-	lookupFunc := func(key string) string {
-		if val, exists := activeEnv[key]; exists {
-			return val
-		} else {
-			return ""
-		}
-	}
-
-	for _, param := range params {
-		interpolatedParam := os.Expand(param, lookupFunc)
-
-		interpolatedParams = append(interpolatedParams, interpolatedParam)
-	}
-
-	return interpolatedParams
+	return execution, nil
 }
 
 // GetExitCode allows to retrieve the exit code of a command execution
@@ -208,7 +183,6 @@ func (c *Command) GetExitCode() int {
 }
 
 func appendEnvironment(cmd *exec.Cmd, env []string) {
-
 	if len(env) > 0 {
 
 		// When cmd.Env is nil the environment variables from the current
@@ -235,9 +209,7 @@ func appendEnvironment(cmd *exec.Cmd, env []string) {
 }
 
 func (c *Command) startCmd(cmd *exec.Cmd) (*execution, error) {
-
 	stdout, stderr, err := cmdPipes(cmd)
-
 	if err != nil {
 		return nil, errors.Wrap(err, "getting command pipes failed")
 	}
@@ -368,7 +340,6 @@ func matchPattern(text, pattern string) bool {
 }
 
 func (c *Command) runCmd(cmd *exec.Cmd) error {
-
 	execution, err := c.startCmd(cmd)
 	if err != nil {
 		return err
@@ -396,10 +367,9 @@ func (c *Command) runCmd(cmd *exec.Cmd) error {
 }
 
 func (c *Command) prepareOut() {
-
-	//ToDo: check use of multiwriter instead to always write into os.Stdout and os.Stdin?
-	//stdout := io.MultiWriter(os.Stdout, &stdoutBuf)
-	//stderr := io.MultiWriter(os.Stderr, &stderrBuf)
+	// ToDo: check use of multiwriter instead to always write into os.Stdout and os.Stdin?
+	// stdout := io.MultiWriter(os.Stdout, &stdoutBuf)
+	// stderr := io.MultiWriter(os.Stderr, &stderrBuf)
 
 	if c.stdout == nil {
 		c.stdout = os.Stdout

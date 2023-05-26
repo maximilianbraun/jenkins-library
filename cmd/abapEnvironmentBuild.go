@@ -100,6 +100,13 @@ func abapEnvironmentBuild(config abapEnvironmentBuildOptions, telemetryData *tel
 }
 
 func runAbapEnvironmentBuild(config *abapEnvironmentBuildOptions, telemetryData *telemetry.CustomData, utils abapEnvironmentBuildUtils, cpe *abapEnvironmentBuildCommonPipelineEnvironment) error {
+
+	log.Entry().Info("╔════════════════════════════════╗")
+	log.Entry().Info("║ abapEnvironmentBuild           ║")
+	log.Entry().Info("╠════════════════════════════════╣")
+	log.Entry().Infof("║ %-30v ║", config.Phase)
+	log.Entry().Info("╙────────────────────────────────╜")
+
 	conn := new(abapbuild.Connector)
 	if err := initConnection(conn, config, utils); err != nil {
 		return errors.Wrap(err, "Connector initialization for communication with the ABAP system failed")
@@ -148,7 +155,7 @@ func runBuilds(conn *abapbuild.Connector, config *abapEnvironmentBuildOptions, u
 			}
 			finalValuesForOneBuild, err := runBuild(conn, config, utils, cummulatedValues)
 			if err != nil {
-				err = errors.Wrapf(err, "Build with input values %s failed", values)
+				err = errors.Wrapf(err, "Build with input values %s failed", values2string(values))
 				if config.StopOnFirstError {
 					return finalValues, err
 				}
@@ -399,12 +406,15 @@ func (vE *valuesEvaluator) appendStringValuesIfNotPresent(stringValues string, t
 
 func (vE *valuesEvaluator) appendValuesIfNotPresent(values []abapbuild.Value, throwErrorIfPresent bool) error {
 	for _, value := range values {
+		if value.ValueID == "PHASE" || value.ValueID == "BUILD_FRAMEWORK_MODE" {
+			continue
+		}
 		_, present := vE.m[value.ValueID]
-		if present || (value.ValueID == "PHASE") {
+		if present {
 			if throwErrorIfPresent {
 				return errors.Errorf("Value_id %s already existed in the config", value.ValueID)
 			}
-			log.Entry().Infof("Value %s already existed -> discard this value", value)
+			log.Entry().Infof("Value '%s':'%s' already existed -> discard this value", value.ValueID, value.Value)
 		} else {
 			vE.m[value.ValueID] = value.Value
 		}
@@ -565,4 +575,15 @@ func Equal(a, b string) bool {
 
 func Unequal(a, b string) bool {
 	return a != b
+}
+
+func values2string(values []abapbuild.Value) string {
+	var result string
+	for index, value := range values {
+		if index > 0 {
+			result = result + "; "
+		}
+		result = result + value.ValueID + " = " + value.Value
+	}
+	return result
 }
